@@ -1,11 +1,47 @@
 /**
- * Main entry point for the library.
+ * @side-quest/community-intel-cache
  *
- * Replace this with your actual exports.
+ * Shared CLI for community intelligence gathering, LLM synthesis,
+ * and caching for Claude Code plugin skills.
+ *
+ * Library exports for programmatic use. The CLI entry point is in cli.ts.
  */
 
-export function greet(name: string): string {
-	return `Hello, ${name}!`
-}
+// Cache staleness
+export {
+	buildBackoffMetadata,
+	calculateNextUpdate,
+	getIntervalDays,
+	hasExistingCache,
+	isCacheFresh,
+} from './cache.js'
+// Diagnostics
+export { createDiagnostics, emitStatus } from './diagnostics.js'
+// Format
+export { formatMarkdown } from './format.js'
 
-export const VERSION = '0.0.0'
+// Gather
+export { gatherTopics, hasData } from './gather.js'
+
+// Synthesize
+export { synthesize } from './synthesize.js'
+// Types
+export type {
+	CacheConfig,
+	CacheMetadata,
+	CliOptions,
+	Last30DaysReport,
+	QueryError,
+	RefreshStatus,
+	StatusReport,
+} from './types.js'
+export {
+	BACKOFF_HOURS,
+	CONFIG_DEFAULTS,
+	MAX_CACHE_AGE_DAYS,
+	QUERY_TIMEOUT_MS,
+	SYNTHESIS_TIMEOUT_MS,
+	TOP_N,
+} from './types.js'
+// Write
+export { writeBackoffMetadata, writeCacheFiles } from './write.js'
