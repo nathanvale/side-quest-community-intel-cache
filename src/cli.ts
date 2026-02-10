@@ -52,6 +52,7 @@ import type {
 	CliOptions,
 	ReviewedHashes,
 } from './types.js'
+import { CONFIG_DEFAULTS } from './types.js'
 import { writeBackoffMetadata, writeCacheFiles } from './write.js'
 
 /** Print full help text to stdout and exit 0. */
@@ -69,6 +70,7 @@ Commands:
 Options:
   --config <path>      Path to community-intel.json (refresh)
   --cache-dir <path>   Cache directory path (all commands)
+  --days <N>           Lookback window in days, 1-365 (refresh, default: 7)
   --no-synthesize      Skip LLM synthesis, use raw markdown (refresh)
   --force              Ignore staleness, force refresh (refresh)
   --verbose            Emit diagnostic messages to stderr (refresh)
@@ -100,6 +102,7 @@ function parseCliArgs(argv: string[]): CliOptions {
 
 	let configPath = ''
 	let cacheDir = ''
+	let days: number = CONFIG_DEFAULTS.days
 	let noSynthesize = false
 	let force = false
 	let verbose = false
@@ -119,6 +122,11 @@ function parseCliArgs(argv: string[]): CliOptions {
 			case '--cache-dir':
 				cacheDir = args[++i] ?? ''
 				break
+			case '--days': {
+				const n = Number(args[++i])
+				days = Math.max(1, Math.min(365, n || CONFIG_DEFAULTS.days))
+				break
+			}
 			case '--no-synthesize':
 				noSynthesize = true
 				break
@@ -145,6 +153,7 @@ function parseCliArgs(argv: string[]): CliOptions {
 		command,
 		configPath,
 		cacheDir,
+		days,
 		noSynthesize,
 		force,
 		verbose,
@@ -232,11 +241,18 @@ async function executeRefresh(options: CliOptions): Promise<void> {
 
 	const hadCache = hasExistingCache(options.cacheDir)
 
+	// Resolve days: CLI flag wins, then config, then default
+	const days =
+		options.days !== CONFIG_DEFAULTS.days
+			? options.days
+			: (config.days ?? CONFIG_DEFAULTS.days)
+
 	// Gather: parallel last-30-days queries
 	const results = await gatherTopics(
 		config.topics,
 		diagnostics,
 		options.verbose,
+		days,
 	)
 
 	// Count successful queries (returned data)

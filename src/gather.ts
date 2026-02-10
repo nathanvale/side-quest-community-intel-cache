@@ -11,7 +11,7 @@ import {
 	whichCommand,
 } from '@side-quest/core/spawn'
 import type { Last30DaysReport, QueryError } from './types.js'
-import { QUERY_TIMEOUT_MS } from './types.js'
+import { CONFIG_DEFAULTS, QUERY_TIMEOUT_MS } from './types.js'
 
 /**
  * Resolve the full path to bunx so spawning works even with a minimal PATH.
@@ -59,6 +59,7 @@ async function runQuery(
 	topic: string,
 	diagnostics: QueryError[],
 	verbose: boolean,
+	days: number = CONFIG_DEFAULTS.days,
 ): Promise<Last30DaysReport | null> {
 	const bunx = resolveBunx()
 	const cmd = [
@@ -68,6 +69,7 @@ async function runQuery(
 		topic,
 		'--emit=json',
 		'--quick',
+		`--days=${days}`,
 	]
 
 	if (verbose) {
@@ -135,8 +137,9 @@ export async function gatherTopics(
 	topics: string[],
 	diagnostics: QueryError[],
 	verbose = false,
+	days: number = CONFIG_DEFAULTS.days,
 ): Promise<Array<Last30DaysReport | null>> {
 	return Promise.all(
-		topics.map((topic) => runQuery(topic, diagnostics, verbose)),
+		topics.map((topic) => runQuery(topic, diagnostics, verbose, days)),
 	)
 }

@@ -28,6 +28,10 @@ bunx @side-quest/community-intel-cache refresh \
 bunx @side-quest/community-intel-cache refresh \
   --config ./community-intel.json --cache-dir ./cache --force
 
+# Custom lookback window (default: 7 days, range: 1-365)
+bunx @side-quest/community-intel-cache refresh \
+  --config ./community-intel.json --cache-dir ./cache --days 14
+
 # Skip LLM synthesis (raw markdown only)
 bunx @side-quest/community-intel-cache refresh \
   --config ./community-intel.json --cache-dir ./cache --no-synthesize
