@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 bun dev                  # Watch mode (runs src/index.ts)
 bun run build            # Build via bunup (ESM, Bun target, code-split)
-bun test --recursive     # Run all tests (currently no test files exist)
+bun test --recursive     # Run all tests
 bun run check            # Biome lint + format (write mode)
 bun run typecheck        # tsc via tsconfig.eslint.json
 bun run validate         # Full pipeline: lint + typecheck + build + test
