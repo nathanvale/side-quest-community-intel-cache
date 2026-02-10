@@ -39,6 +39,7 @@ export type {
 	ExtractResult,
 	Finding,
 	Last30DaysReport,
+	QualityFilterOptions,
 	QueryError,
 	RefreshStatus,
 	ReviewedEntry,

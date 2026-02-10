@@ -20,6 +20,10 @@ export interface CacheConfig {
 	context?: string
 	/** Lookback window in days for @side-quest/last-30-days (1-365, default: 7). */
 	days?: number
+	/** Minimum engagement score for a finding to pass quality filtering (default: 25). */
+	minScore?: number
+	/** Minimum character length for why_relevant/summary to pass quality filtering (default: 40). */
+	minSummaryLength?: number
 }
 
 /** Metadata stored in last-updated.json to track cache staleness. */
@@ -142,11 +146,21 @@ export interface ExtractResult {
 	findings: Finding[]
 }
 
+/** Options for quality filtering during finding extraction. */
+export interface QualityFilterOptions {
+	/** Minimum engagement score (default: CONFIG_DEFAULTS.minScore). */
+	minScore?: number
+	/** Minimum character length for summary/why_relevant (default: CONFIG_DEFAULTS.minSummaryLength). */
+	minSummaryLength?: number
+}
+
 /** Defaults for optional config fields. */
 export const CONFIG_DEFAULTS = {
 	refreshIntervalDays: 30,
 	thinCacheIntervalDays: 7,
 	days: 7,
+	minScore: 25,
+	minSummaryLength: 40,
 } as const
 
 /** Maximum cache age before forced refresh (clock skew guard). */
