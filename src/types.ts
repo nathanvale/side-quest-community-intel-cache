@@ -18,6 +18,8 @@ export interface CacheConfig {
 	 * If omitted, synthesis uses topics as context.
 	 */
 	context?: string
+	/** Lookback window in days for @side-quest/last-30-days (1-365, default: 7). */
+	days?: number
 }
 
 /** Metadata stored in last-updated.json to track cache staleness. */
@@ -86,6 +88,8 @@ export interface CliOptions {
 	noSynthesize: boolean
 	force: boolean
 	verbose: boolean
+	/** Lookback window in days for @side-quest/last-30-days (1-365). Undefined when not provided via CLI. */
+	days: number | undefined
 	/** Comma-separated finding hashes for the review command. */
 	hashes: string[]
 	/** Decision for the review command. */
@@ -142,6 +146,7 @@ export interface ExtractResult {
 export const CONFIG_DEFAULTS = {
 	refreshIntervalDays: 30,
 	thinCacheIntervalDays: 7,
+	days: 7,
 } as const
 
 /** Maximum cache age before forced refresh (clock skew guard). */
