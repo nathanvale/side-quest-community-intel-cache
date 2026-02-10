@@ -3,9 +3,11 @@
 /**
  * CLI entry point for community-intel-cache.
  *
- * Two commands:
+ * Commands:
  *   refresh - Check staleness, gather, synthesize, write cache
  *   reset   - Delete cache files to force refresh on next run
+ *   extract - Get unreviewed findings from staged raw data
+ *   review  - Record accept/reject decisions for findings
  *
  * Always exits 0 -- never blocks Claude Code hooks.
  *
@@ -16,11 +18,22 @@
  *
  *   bunx @side-quest/community-intel-cache reset \
  *     --cache-dir ./skills/hooks/cache
+ *
+ *   bunx @side-quest/community-intel-cache extract \
+ *     --cache-dir ./skills/hooks/cache
+ *
+ *   bunx @side-quest/community-intel-cache review \
+ *     --cache-dir ./skills/hooks/cache \
+ *     --hashes hash1,hash2 --decision accepted
  */
 
 import { existsSync, unlinkSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { readJsonFileSync } from '@side-quest/core/fs'
+import {
+	readJsonFileOrDefault,
+	readJsonFileSync,
+	writeJsonFileAtomic,
+} from '@side-quest/core/fs'
 import {
 	buildBackoffMetadata,
 	calculateNextUpdate,
@@ -29,20 +42,27 @@ import {
 	isCacheFresh,
 } from './cache.js'
 import { createDiagnostics, emitStatus } from './diagnostics.js'
+import { getUnreviewedFindings } from './extract.js'
 import { formatMarkdown } from './format.js'
 import { gatherTopics, hasData } from './gather.js'
 import { synthesize } from './synthesize.js'
-import type { CacheConfig, CacheMetadata, CliOptions } from './types.js'
+import type {
+	CacheConfig,
+	CacheMetadata,
+	CliOptions,
+	ReviewedHashes,
+} from './types.js'
 import { writeBackoffMetadata, writeCacheFiles } from './write.js'
 
 /** Parse CLI arguments into structured options. */
 function parseCliArgs(argv: string[]): CliOptions {
 	const args = argv.slice(2)
-	const command = args[0] as 'refresh' | 'reset' | undefined
+	const command = args[0] as CliOptions['command'] | undefined
 
-	if (!command || !['refresh', 'reset'].includes(command)) {
+	const validCommands = ['refresh', 'reset', 'extract', 'review']
+	if (!command || !validCommands.includes(command)) {
 		console.error(
-			'Usage: community-intel-cache <refresh|reset> --config <path> --cache-dir <path>',
+			'Usage: community-intel-cache <refresh|reset|extract|review> --cache-dir <path> [options]',
 		)
 		process.exit(0)
 	}
@@ -52,6 +72,8 @@ function parseCliArgs(argv: string[]): CliOptions {
 	let noSynthesize = false
 	let force = false
 	let verbose = false
+	let hashes: string[] = []
+	let decision: 'accepted' | 'rejected' = 'accepted'
 
 	for (let i = 1; i < args.length; i++) {
 		const arg = args[i]
@@ -71,6 +93,12 @@ function parseCliArgs(argv: string[]): CliOptions {
 			case '--verbose':
 				verbose = true
 				break
+			case '--hashes':
+				hashes = (args[++i] ?? '').split(',').filter(Boolean)
+				break
+			case '--decision':
+				decision = (args[++i] ?? 'accepted') as 'accepted' | 'rejected'
+				break
 		}
 	}
 
@@ -78,7 +106,16 @@ function parseCliArgs(argv: string[]): CliOptions {
 	if (configPath) configPath = resolve(configPath)
 	if (cacheDir) cacheDir = resolve(cacheDir)
 
-	return { command, configPath, cacheDir, noSynthesize, force, verbose }
+	return {
+		command,
+		configPath,
+		cacheDir,
+		noSynthesize,
+		force,
+		verbose,
+		hashes,
+		decision,
+	}
 }
 
 /** Execute the reset command: delete cache files. */
@@ -88,7 +125,7 @@ function executeReset(cacheDir: string): void {
 		process.exit(0)
 	}
 
-	const files = ['community-intel.md', 'last-updated.json']
+	const files = ['staged-intel.md', 'staged-raw.json', 'last-updated.json']
 	for (const file of files) {
 		const path = join(cacheDir, file)
 		if (existsSync(path)) {
@@ -239,7 +276,7 @@ async function executeRefresh(options: CliOptions): Promise<void> {
 		next_update_after: nextUpdate.toISOString(),
 	}
 
-	await writeCacheFiles(options.cacheDir, markdown, metadata)
+	await writeCacheFiles(options.cacheDir, markdown, metadata, results)
 
 	emitStatus(
 		'refreshed',
@@ -248,16 +285,84 @@ async function executeRefresh(options: CliOptions): Promise<void> {
 	)
 }
 
+/** Execute the extract command: get unreviewed findings from staged data. */
+function executeExtract(cacheDir: string): void {
+	if (!cacheDir) {
+		console.error('--cache-dir is required for extract')
+		process.exit(0)
+	}
+
+	const result = getUnreviewedFindings(cacheDir)
+	console.log(JSON.stringify(result, null, '\t'))
+}
+
+/**
+ * Execute the review command: record accept/reject decisions for findings.
+ *
+ * Uses readJsonFileOrDefault + writeJsonFileAtomic for safe
+ * read-modify-write of reviewed-hashes.json.
+ */
+async function executeReview(options: CliOptions): Promise<void> {
+	if (!options.cacheDir) {
+		console.error('--cache-dir is required for review')
+		process.exit(0)
+	}
+
+	if (options.hashes.length === 0) {
+		console.error('--hashes is required for review (comma-separated)')
+		process.exit(0)
+	}
+
+	if (!['accepted', 'rejected'].includes(options.decision)) {
+		console.error('--decision must be "accepted" or "rejected"')
+		process.exit(0)
+	}
+
+	const now = new Date().toISOString()
+	const newEntries = options.hashes.map((hash) => ({
+		hash,
+		decision: options.decision,
+		date: now,
+	}))
+
+	const reviewedPath = join(options.cacheDir, 'reviewed-hashes.json')
+	const existing = readJsonFileOrDefault<ReviewedHashes>(reviewedPath, {
+		version: 1,
+		reviewed: [],
+	})
+	const newHashSet = new Set(newEntries.map((e) => e.hash))
+	// Remove any prior decisions for the same hashes (last decision wins)
+	existing.reviewed = existing.reviewed.filter((r) => !newHashSet.has(r.hash))
+	existing.reviewed.push(...newEntries)
+	await writeJsonFileAtomic(reviewedPath, existing)
+
+	console.log(
+		JSON.stringify({
+			status: 'recorded',
+			count: newEntries.length,
+			decision: options.decision,
+		}),
+	)
+}
+
 /** Main entry point -- wraps everything in try/catch, always exits 0. */
 async function main(): Promise<void> {
 	const options = parseCliArgs(process.argv)
 
-	if (options.command === 'reset') {
-		executeReset(options.cacheDir)
-		return
+	switch (options.command) {
+		case 'reset':
+			executeReset(options.cacheDir)
+			return
+		case 'extract':
+			executeExtract(options.cacheDir)
+			return
+		case 'review':
+			await executeReview(options)
+			return
+		case 'refresh':
+			await executeRefresh(options)
+			return
 	}
-
-	await executeRefresh(options)
 }
 
 main().catch((err) => {

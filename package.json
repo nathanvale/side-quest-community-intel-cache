@@ -1,6 +1,6 @@
 {
 	"name": "@side-quest/community-intel-cache",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"description": "Shared CLI for community intelligence gathering, LLM synthesis, and caching for Claude Code plugin skills",
 	"author": {
 		"name": "Nathan Vale",
@@ -88,7 +88,7 @@
 		"watch:types": "tsc -p tsconfig.eslint.json --noEmit --watch"
 	},
 	"dependencies": {
-		"@side-quest/core": "^0.2.0"
+		"@side-quest/core": "^0.3.1"
 	},
 	"devDependencies": {
 		"@arethetypeswrong/cli": "^0.18.2",

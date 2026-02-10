@@ -32,6 +32,18 @@ function resolveBunx(): string {
 	return 'bunx' // last resort: hope it's on PATH at runtime
 }
 
+/** Validate that parsed JSON matches the expected Last30DaysReport shape. */
+function isValidReport(parsed: unknown): parsed is Last30DaysReport {
+	if (typeof parsed !== 'object' || parsed === null) return false
+	const obj = parsed as Record<string, unknown>
+	return (
+		typeof obj.topic === 'string' &&
+		Array.isArray(obj.reddit) &&
+		Array.isArray(obj.x) &&
+		Array.isArray(obj.web)
+	)
+}
+
 /** Check whether a report has any actual data across all source arrays. */
 export function hasData(report: Last30DaysReport): boolean {
 	return report.reddit.length + report.x.length + report.web.length > 0
@@ -93,7 +105,15 @@ async function runQuery(
 	}
 
 	try {
-		return JSON.parse(result.stdout.trim())
+		const parsed = JSON.parse(result.stdout.trim())
+		if (!isValidReport(parsed)) {
+			diagnostics.push({
+				topic,
+				reason: 'invalid report shape',
+			})
+			return { topic, reddit: [], x: [], web: [] }
+		}
+		return parsed
 	} catch {
 		diagnostics.push({
 			topic,

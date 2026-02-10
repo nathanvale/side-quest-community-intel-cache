@@ -27,7 +27,7 @@ function writeMetadata(metadata: CacheMetadata): void {
 }
 
 function writeIntelFile(content = '# test'): void {
-	writeFileSync(join(testDir, 'community-intel.md'), content)
+	writeFileSync(join(testDir, 'staged-intel.md'), content)
 }
 
 describe('isCacheFresh', () => {

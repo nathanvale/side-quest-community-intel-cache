@@ -80,12 +80,62 @@ export interface StatusReport {
 
 /** Resolved CLI options after argument parsing. */
 export interface CliOptions {
-	command: 'refresh' | 'reset'
+	command: 'refresh' | 'reset' | 'extract' | 'review'
 	configPath: string
 	cacheDir: string
 	noSynthesize: boolean
 	force: boolean
 	verbose: boolean
+	/** Comma-separated finding hashes for the review command. */
+	hashes: string[]
+	/** Decision for the review command. */
+	decision: 'accepted' | 'rejected'
+}
+
+/** A single finding extracted from a Last30DaysReport for review. */
+export interface Finding {
+	/** SHA-256 hash of the finding's URL (stable identity). */
+	hash: string
+	/** Source type: reddit, x, or web. */
+	type: 'reddit' | 'x' | 'web'
+	/** Research topic this finding came from. */
+	topic: string
+	/** Human-readable title or text preview. */
+	title: string
+	/** Brief summary of what this finding is about. */
+	summary: string
+	/** Source URL (the identity key for hashing). */
+	url: string
+	/** Engagement score from the source. */
+	score: number
+	/** Date of the finding, if available. */
+	date: string | null
+}
+
+/** A record of a review decision for a finding hash. */
+export interface ReviewedEntry {
+	/** SHA-256 hash of the finding's URL. */
+	hash: string
+	/** Whether the finding was accepted or rejected. */
+	decision: 'accepted' | 'rejected'
+	/** ISO timestamp of when the decision was made. */
+	date: string
+}
+
+/** Persisted file tracking which findings have been reviewed. */
+export interface ReviewedHashes {
+	/** Schema version for forward compatibility. */
+	version: number
+	/** All review decisions. */
+	reviewed: ReviewedEntry[]
+}
+
+/** Result from extracting unreviewed findings. */
+export interface ExtractResult {
+	/** Whether there are new findings to review. */
+	status: 'has_new' | 'no_new' | 'no_staged'
+	/** Unreviewed findings (empty if status is not 'has_new'). */
+	findings: Finding[]
 }
 
 /** Defaults for optional config fields. */
