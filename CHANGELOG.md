@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.0.0
+
+### Major Changes
+
+- [#6](https://github.com/nathanvale/side-quest-community-intel-cache/pull/6) [`2311d8c`](https://github.com/nathanvale/side-quest-community-intel-cache/commit/2311d8c609fb2b5690630c4da84c631d46fe1c8d) Thanks [@nathanvale](https://github.com/nathanvale)! - Add finding extraction and review workflow
+
+  BREAKING CHANGE: Cache files renamed from `community-intel.md` to `staged-intel.md`. Existing caches will be treated as stale and re-generated on next refresh.
+
+  - Add `extract` command to get unreviewed findings from staged raw data
+  - Add `review` command to record accept/reject decisions for findings
+  - Add JSON shape validation to prevent malformed gather results
+  - Add prompt injection protection in synthesis prompts
+  - Skip synthesis when all results are empty to prevent hallucinated findings
+  - Write `staged-raw.json` alongside synthesized markdown for finding extraction
+  - Track review decisions in `reviewed-hashes.json`
+
 ## 0.1.0
 
 ### Minor Changes
