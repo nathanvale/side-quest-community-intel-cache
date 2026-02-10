@@ -14,7 +14,7 @@ import { BACKOFF_HOURS, CONFIG_DEFAULTS, MAX_CACHE_AGE_DAYS } from './types.js'
  * Check whether the cache is still fresh (skip refresh if true).
  *
  * A cache is fresh when:
- * 1. Both last-updated.json and community-intel.md exist
+ * 1. Both last-updated.json and staged-intel.md exist
  * 2. The metadata parses successfully
  * 3. last_updated is not older than MAX_CACHE_AGE_DAYS (clock skew guard)
  * 4. next_update_after is in the future
@@ -24,7 +24,7 @@ export function isCacheFresh(cacheDir: string): boolean {
 	if (!pathExistsSync(metadataPath)) return false
 
 	// Cache requires both metadata and the actual intel file
-	if (!pathExistsSync(join(cacheDir, 'community-intel.md'))) return false
+	if (!pathExistsSync(join(cacheDir, 'staged-intel.md'))) return false
 
 	const metadata = readJsonFileOrDefault<CacheMetadata | null>(
 		metadataPath,
@@ -113,5 +113,5 @@ export function buildBackoffMetadata(
 
 /** Check whether an existing cache file is present (for status reporting). */
 export function hasExistingCache(cacheDir: string): boolean {
-	return pathExistsSync(join(cacheDir, 'community-intel.md'))
+	return pathExistsSync(join(cacheDir, 'staged-intel.md'))
 }

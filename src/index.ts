@@ -17,6 +17,12 @@ export {
 } from './cache.js'
 // Diagnostics
 export { createDiagnostics, emitStatus } from './diagnostics.js'
+// Extract
+export {
+	computeFindingHash,
+	extractFindings,
+	getUnreviewedFindings,
+} from './extract.js'
 // Format
 export { formatMarkdown } from './format.js'
 
@@ -30,9 +36,13 @@ export type {
 	CacheConfig,
 	CacheMetadata,
 	CliOptions,
+	ExtractResult,
+	Finding,
 	Last30DaysReport,
 	QueryError,
 	RefreshStatus,
+	ReviewedEntry,
+	ReviewedHashes,
 	StatusReport,
 } from './types.js'
 export {
