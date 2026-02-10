@@ -102,7 +102,7 @@ function parseCliArgs(argv: string[]): CliOptions {
 
 	let configPath = ''
 	let cacheDir = ''
-	let days: number = CONFIG_DEFAULTS.days
+	let days: number | undefined
 	let noSynthesize = false
 	let force = false
 	let verbose = false
@@ -123,8 +123,18 @@ function parseCliArgs(argv: string[]): CliOptions {
 				cacheDir = args[++i] ?? ''
 				break
 			case '--days': {
-				const n = Number(args[++i])
-				days = Math.max(1, Math.min(365, n || CONFIG_DEFAULTS.days))
+				const raw = args[++i]
+				const n = Number(raw)
+				if (Number.isNaN(n)) {
+					if (verbose) {
+						console.error(
+							`[cli] --days received non-numeric value "${raw}", using default ${CONFIG_DEFAULTS.days}`,
+						)
+					}
+					days = CONFIG_DEFAULTS.days
+				} else {
+					days = Math.max(1, Math.min(365, n))
+				}
 				break
 			}
 			case '--no-synthesize':
@@ -242,10 +252,7 @@ async function executeRefresh(options: CliOptions): Promise<void> {
 	const hadCache = hasExistingCache(options.cacheDir)
 
 	// Resolve days: CLI flag wins, then config, then default
-	const days =
-		options.days !== CONFIG_DEFAULTS.days
-			? options.days
-			: (config.days ?? CONFIG_DEFAULTS.days)
+	const days = options.days ?? config.days ?? CONFIG_DEFAULTS.days
 
 	// Gather: parallel last-30-days queries
 	const results = await gatherTopics(

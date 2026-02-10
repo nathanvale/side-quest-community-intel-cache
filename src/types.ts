@@ -88,8 +88,8 @@ export interface CliOptions {
 	noSynthesize: boolean
 	force: boolean
 	verbose: boolean
-	/** Lookback window in days for @side-quest/last-30-days (1-365). */
-	days: number
+	/** Lookback window in days for @side-quest/last-30-days (1-365). Undefined when not provided via CLI. */
+	days: number | undefined
 	/** Comma-separated finding hashes for the review command. */
 	hashes: string[]
 	/** Decision for the review command. */
