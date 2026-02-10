@@ -54,9 +54,39 @@ import type {
 } from './types.js'
 import { writeBackoffMetadata, writeCacheFiles } from './write.js'
 
+/** Print full help text to stdout and exit 0. */
+function printHelp(): never {
+	console.log(`community-intel-cache - Community intelligence gathering and caching CLI
+
+Usage: community-intel-cache <command> [options]
+
+Commands:
+  refresh   Check staleness, gather, synthesize, and write cache
+  reset     Delete cache files to force refresh on next run
+  extract   Get unreviewed findings from staged raw data
+  review    Record accept/reject decisions for findings
+
+Options:
+  --config <path>      Path to community-intel.json (refresh)
+  --cache-dir <path>   Cache directory path (all commands)
+  --no-synthesize      Skip LLM synthesis, use raw markdown (refresh)
+  --force              Ignore staleness, force refresh (refresh)
+  --verbose            Emit diagnostic messages to stderr (refresh)
+  --hashes <h1,h2>    Comma-separated finding hashes (review)
+  --decision <value>   "accepted" or "rejected" (review)
+  --help, -h           Show this help message`)
+	process.exit(0)
+}
+
 /** Parse CLI arguments into structured options. */
 function parseCliArgs(argv: string[]): CliOptions {
 	const args = argv.slice(2)
+
+	// Top-level --help before command parsing
+	if (args[0] === '--help' || args[0] === '-h') {
+		printHelp()
+	}
+
 	const command = args[0] as CliOptions['command'] | undefined
 
 	const validCommands = ['refresh', 'reset', 'extract', 'review']
@@ -64,6 +94,7 @@ function parseCliArgs(argv: string[]): CliOptions {
 		console.error(
 			'Usage: community-intel-cache <refresh|reset|extract|review> --cache-dir <path> [options]',
 		)
+		console.error('Run with --help for usage information.')
 		process.exit(0)
 	}
 
@@ -78,6 +109,10 @@ function parseCliArgs(argv: string[]): CliOptions {
 	for (let i = 1; i < args.length; i++) {
 		const arg = args[i]
 		switch (arg) {
+			case '--help':
+			case '-h':
+				printHelp()
+				break
 			case '--config':
 				configPath = args[++i] ?? ''
 				break
