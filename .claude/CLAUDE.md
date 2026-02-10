@@ -1,172 +1,128 @@
-# bun-typescript-starter
+# CLAUDE.md
 
-A production-ready TypeScript/Bun project template with CI/CD, linting, testing, and publishing infrastructure.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**Stack:** TypeScript, Bun, Biome, Vitest, Changesets
+## What This Is
 
----
+`@side-quest/community-intel-cache` is a CLI tool and library that automates community intelligence gathering for Claude Code plugin skills. It queries `@side-quest/last-30-days` for Reddit/X/web results, optionally synthesizes them via `claude --print`, and writes cached markdown + raw JSON to disk. A review workflow lets consumers accept/reject individual findings before they reach end-user context.
 
-## Quick Start
-
-```bash
-# After "Use this template" on GitHub
-bun run setup    # Interactive configuration
-bun install      # Install dependencies (if not done by setup)
-bun dev          # Watch mode development
-bun test         # Run tests
-bun run build    # Build for production
-```
-
----
-
-## Key Commands
+## Commands
 
 ```bash
-# Development
-bun dev                  # Watch mode
-bun build                # Build TypeScript to dist/
-
-# Quality
+bun dev                  # Watch mode (runs src/index.ts)
+bun run build            # Build via bunup (ESM, Bun target, code-split)
+bun test --recursive     # Run all tests (currently no test files exist)
 bun run check            # Biome lint + format (write mode)
-bun typecheck            # TypeScript type checking
-bun run validate         # Full quality check (lint + types + build + test)
-
-# Testing
-bun test                 # Run all tests
-bun test --coverage      # With coverage report
-
-# Releases
-bun version:gen          # Create changeset
+bun run typecheck        # tsc via tsconfig.eslint.json
+bun run validate         # Full pipeline: lint + typecheck + build + test
 ```
 
----
+### CLI Usage (the built artifact)
+
+```bash
+# Refresh cache (gather + synthesize + write)
+bunx @side-quest/community-intel-cache refresh \
+  --config ./community-intel.json --cache-dir ./cache
+
+# Force refresh (ignore staleness)
+bunx @side-quest/community-intel-cache refresh \
+  --config ./community-intel.json --cache-dir ./cache --force
+
+# Skip LLM synthesis (raw markdown only)
+bunx @side-quest/community-intel-cache refresh \
+  --config ./community-intel.json --cache-dir ./cache --no-synthesize
+
+# Reset cache files
+bunx @side-quest/community-intel-cache reset --cache-dir ./cache
+
+# Extract unreviewed findings from staged data
+bunx @side-quest/community-intel-cache extract --cache-dir ./cache
+
+# Record review decisions
+bunx @side-quest/community-intel-cache review \
+  --cache-dir ./cache --hashes hash1,hash2 --decision accepted
+```
+
+## Architecture
+
+Two entry points in `bunup.config.ts`: `src/index.ts` (library) and `src/cli.ts` (CLI binary).
+
+### Pipeline (refresh command)
+
+```
+community-intel.json --> cli.ts (parseCliArgs)
+                           |
+                    cache.ts (isCacheFresh) --> exit early if fresh
+                           |
+                    gather.ts (gatherTopics) --> parallel bunx @side-quest/last-30-days calls
+                           |
+                    synthesize.ts (synthesize) --> claude --print with stdin piping
+                           |  (falls back to format.ts on failure)
+                    format.ts (formatMarkdown) --> raw markdown fallback
+                           |
+                    write.ts (writeCacheFiles) --> atomic writes: staged-intel.md, staged-raw.json, last-updated.json
+```
+
+### Review workflow (extract + review commands)
+
+```
+staged-raw.json --> extract.ts (extractFindings) --> flat Finding[] with SHA-256 URL hashes
+                         |
+                  reviewed-hashes.json --> filter out already-reviewed
+                         |
+                  cli.ts review --> append accept/reject to reviewed-hashes.json
+```
+
+### Key files
+
+| File | Purpose |
+|------|---------|
+| `src/cli.ts` | CLI entry point, arg parsing, command dispatch. Always exits 0 (never blocks hooks). |
+| `src/types.ts` | All shared types + config defaults + timeout constants |
+| `src/gather.ts` | Parallel `@side-quest/last-30-days` queries via `@side-quest/core/spawn` |
+| `src/synthesize.ts` | LLM synthesis via `claude --print` with stdin piping |
+| `src/cache.ts` | Staleness checking, interval calculation (30d full / 7d thin), backoff (4h) |
+| `src/extract.ts` | Finding extraction from raw reports, SHA-256 URL hashing, dedup |
+| `src/format.ts` | Raw markdown fallback (no LLM) - topic-by-topic, source-by-source |
+| `src/write.ts` | Atomic file writes via `@side-quest/core/fs` (content first, metadata last) |
+| `src/diagnostics.ts` | Error collection + JSON status emission to stdout |
+
+### Cache files (written to --cache-dir)
+
+| File | Purpose |
+|------|---------|
+| `staged-intel.md` | Synthesized (or raw) markdown for skill consumption |
+| `staged-raw.json` | Raw `Last30DaysReport[]` for finding extraction |
+| `last-updated.json` | `CacheMetadata` with `next_update_after` for staleness |
+| `reviewed-hashes.json` | Persisted review decisions (`ReviewedHashes`) |
+
+### Dependencies
+
+- `@side-quest/core` - Shared utilities (fs atomic writes, spawn with timeout, SHA-256 hashing)
+- `@side-quest/last-30-days` - Research CLI queried at runtime via `bunx`
+
+### Design decisions
+
+- **Always exits 0** - The CLI is designed for Claude Code hooks, so it must never block the tool
+- **Content-first write ordering** - staged-intel.md is written before last-updated.json; if process crashes mid-write, missing metadata means "stale" (safe), not "fresh with missing content" (unsafe)
+- **Self-healing cache** - When <50% of queries succeed, uses 7-day interval instead of 30-day so cache recovers faster
+- **4-hour backoff** - When all queries fail, backs off instead of retrying immediately
 
 ## Code Conventions
 
 | Area | Convention |
 |------|------------|
 | Files | kebab-case (`my-util.ts`) |
-| Functions | camelCase (`doSomething`) |
-| Types | PascalCase (`MyType`) |
+| Functions | camelCase |
+| Types | PascalCase |
 | Exports | Named only (no defaults) |
-| Formatting | Biome (tabs, single quotes, 80-char) |
-
----
+| Formatting | Biome: tabs, single quotes, 80-char lines, semicolons as-needed |
+| Tests | Colocated `*.test.ts` or in `__tests__/` (line width relaxed to 100) |
 
 ## Git Workflow
 
-**Branch pattern:** `type/description` (e.g., `feat/add-feature`, `fix/bug-fix`)
+**Branch pattern:** `type/description` (e.g., `feat/add-feature`)
 
-**Commit format:** Conventional Commits (enforced by commitlint)
-
-```
-feat(scope): add new feature
-fix(scope): fix bug
-chore(deps): update dependencies
-```
+**Commits:** Conventional Commits enforced by commitlint + Husky
 
 **Before pushing:** Always run `bun run validate`
-
----
-
-## Template Development Workflow
-
-When dogfooding this template (testing it in a real project), use this workflow to push fixes back upstream.
-
-### Setup (one-time)
-
-```bash
-# Create a new repo from template via GitHub UI
-# Clone it locally
-git clone git@github.com:youruser/your-new-project.git
-cd your-new-project
-
-# Add template as upstream remote
-git remote add template git@github.com:nathanvale/bun-typescript-starter.git
-```
-
-### Pushing Fixes Upstream
-
-When you find an issue in the template while using it:
-
-```bash
-# 1. Fix the issue in your dogfood project
-# 2. Commit the fix
-git add .
-git commit -m "fix: description of the fix"
-
-# 3. Push to your project's origin (optional, for your project)
-git push origin main
-
-# 4. Push to template upstream
-git push template HEAD:main
-```
-
-### Pulling Template Updates
-
-```bash
-# Fetch latest from template
-git fetch template
-
-# Merge template changes into your project
-git merge template/main --allow-unrelated-histories
-```
-
----
-
-## Publishing
-
-This template uses **OIDC Trusted Publishing** for npm releases.
-
-### First Publish (requires NPM_TOKEN)
-
-1. Add `NPM_TOKEN` secret to GitHub repo settings
-2. Create a changeset: `bun version:gen`
-3. Push to main, merge the "Version Packages" PR
-
-### After First Publish (OIDC)
-
-1. Configure trusted publisher at: https://www.npmjs.com/package/YOUR_PACKAGE/access
-2. Remove `NPM_TOKEN` secret (no longer needed)
-3. Future publishes authenticate via GitHub OIDC
-
----
-
-## CI/CD Workflows
-
-| Workflow | Trigger | Purpose |
-|----------|---------|---------|
-| `pr-quality.yml` | PR | Lint, types, tests |
-| `publish.yml` | Push to main | Version & publish |
-| `autogenerate-changeset.yml` | PR | Auto-generate changeset if missing |
-| `commitlint.yml` | PR | Validate commit messages |
-| `security.yml` | Schedule/PR | CodeQL + Trivy scans |
-
-**GitHub App:** [Changeset Bot](https://github.com/apps/changeset-bot) — comments on PRs with changeset status (install per-repo)
-
----
-
-## Customization
-
-After running `bun run setup`:
-
-1. **Add source files** in `src/`
-2. **Add tests** alongside source (`*.test.ts`)
-3. **Update exports** in `bunup.config.ts`
-4. **Configure path aliases** in `tsconfig.json` if needed
-
----
-
-## Special Rules
-
-### ALWAYS
-
-1. Run `bun run validate` before pushing
-2. Create changesets for user-facing changes
-3. Use named exports (no defaults)
-
-### NEVER
-
-1. Push directly to main (pre-push hook blocks)
-2. Skip validation before commits
-3. Use destructive git commands (`reset --hard`, `push --force`)
