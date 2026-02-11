@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0
+
+### Minor Changes
+
+- [#10](https://github.com/nathanvale/side-quest-community-intel-cache/pull/10) [`594f488`](https://github.com/nathanvale/side-quest-community-intel-cache/commit/594f4886e33dc75e511c14aa6caa8b6c18c8505b) Thanks [@nathanvale](https://github.com/nathanvale)! - feat: add --days CLI parameter for configurable lookback window (1-365); default changed from 30 to 7 days
+
 ## 1.0.0
 
 ### Major Changes
