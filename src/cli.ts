@@ -20,7 +20,8 @@
  *     --cache-dir ./skills/hooks/cache
  *
  *   bunx @side-quest/community-intel-cache extract \
- *     --cache-dir ./skills/hooks/cache
+ *     --cache-dir ./skills/hooks/cache \
+ *     --config ./community-intel.json
  *
  *   bunx @side-quest/community-intel-cache review \
  *     --cache-dir ./skills/hooks/cache \
@@ -68,7 +69,7 @@ Commands:
   review    Record accept/reject decisions for findings
 
 Options:
-  --config <path>      Path to community-intel.json (refresh)
+  --config <path>      Path to community-intel.json (refresh, extract)
   --cache-dir <path>   Cache directory path (all commands)
   --days <N>           Lookback window in days, 1-365 (refresh, default: 7)
   --no-synthesize      Skip LLM synthesis, use raw markdown (refresh)
@@ -344,13 +345,30 @@ async function executeRefresh(options: CliOptions): Promise<void> {
 }
 
 /** Execute the extract command: get unreviewed findings from staged data. */
-function executeExtract(cacheDir: string): void {
-	if (!cacheDir) {
+function executeExtract(options: CliOptions): void {
+	if (!options.cacheDir) {
 		console.error('--cache-dir is required for extract')
 		process.exit(0)
 	}
 
-	const result = getUnreviewedFindings(cacheDir)
+	// Load config for quality filter thresholds (optional for extract)
+	let minScore: number | undefined
+	let minSummaryLength: number | undefined
+
+	if (options.configPath) {
+		try {
+			const config = readJsonFileSync<CacheConfig>(options.configPath)
+			minScore = config.minScore
+			minSummaryLength = config.minSummaryLength
+		} catch {
+			// Config is optional for extract -- use defaults on failure
+		}
+	}
+
+	const result = getUnreviewedFindings(options.cacheDir, {
+		minScore,
+		minSummaryLength,
+	})
 	console.log(JSON.stringify(result, null, '\t'))
 }
 
@@ -412,7 +430,7 @@ async function main(): Promise<void> {
 			executeReset(options.cacheDir)
 			return
 		case 'extract':
-			executeExtract(options.cacheDir)
+			executeExtract(options)
 			return
 		case 'review':
 			await executeReview(options)
