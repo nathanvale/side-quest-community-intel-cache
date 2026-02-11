@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0
+
+### Minor Changes
+
+- [#13](https://github.com/nathanvale/side-quest-community-intel-cache/pull/13) [`2ea0d4c`](https://github.com/nathanvale/side-quest-community-intel-cache/commit/2ea0d4c81f23281a28ed63c027344dc98bbf6ace) Thanks [@nathanvale](https://github.com/nathanvale)! - feat: add minimum quality filter to finding extraction - filters out low-score and short-summary findings via configurable minScore (default 25) and minSummaryLength (default 40) thresholds
+
 ## 1.1.0
 
 ### Minor Changes
