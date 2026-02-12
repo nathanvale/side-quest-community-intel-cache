@@ -60,6 +60,7 @@ async function runQuery(
 	diagnostics: QueryError[],
 	verbose: boolean,
 	days: number = CONFIG_DEFAULTS.days,
+	forceRefresh = false,
 ): Promise<Last30DaysReport | null> {
 	const bunx = resolveBunx()
 	const cmd = [
@@ -71,6 +72,10 @@ async function runQuery(
 		'--quick',
 		`--days=${days}`,
 	]
+
+	if (forceRefresh) {
+		cmd.push('--refresh')
+	}
 
 	if (verbose) {
 		console.error(`[gather] querying: ${topic}`)
@@ -138,8 +143,11 @@ export async function gatherTopics(
 	diagnostics: QueryError[],
 	verbose = false,
 	days: number = CONFIG_DEFAULTS.days,
+	forceRefresh = false,
 ): Promise<Array<Last30DaysReport | null>> {
 	return Promise.all(
-		topics.map((topic) => runQuery(topic, diagnostics, verbose, days)),
+		topics.map((topic) =>
+			runQuery(topic, diagnostics, verbose, days, forceRefresh),
+		),
 	)
 }

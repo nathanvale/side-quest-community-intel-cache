@@ -65,6 +65,22 @@ export interface Last30DaysReport {
 		why_relevant: string
 		score: number
 	}>
+	/** Lookback window used for this query. */
+	days?: number
+	/** ISO timestamp when this report was generated. */
+	generated_at?: string
+	/** Source mode used (e.g. "both", "reddit", "x"). */
+	mode?: string
+	/** OpenAI model used for Reddit synthesis. */
+	openai_model_used?: string
+	/** xAI model used for X synthesis. */
+	xai_model_used?: string
+	/** Best practices extracted from research. */
+	best_practices?: string[]
+	/** Prompt snippets derived from research. */
+	prompt_pack?: string[]
+	/** Pre-formatted markdown context snippet. */
+	context_snippet_md?: string
 }
 
 /** Status reported on exit via JSON to stdout. */
