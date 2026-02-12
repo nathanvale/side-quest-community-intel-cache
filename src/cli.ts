@@ -261,6 +261,7 @@ async function executeRefresh(options: CliOptions): Promise<void> {
 		diagnostics,
 		options.verbose,
 		days,
+		options.force,
 	)
 
 	// Count successful queries (returned data)
